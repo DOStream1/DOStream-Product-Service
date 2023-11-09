@@ -1,0 +1,94 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_run:
+    workflows: ["main.yml"]
+    types:
+      - completed
+
+jobs:
+  generate_tag_dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set TAG environment variable
+        run: |
+          echo "TAG=$(cat VERSION)" >> $GITHUB_ENV
+        shell: bash
+
+  auto-release-master_dev:
+    runs-on: ubuntu-latest
+    needs: generate_tag_dev
+    steps:
+      - name: Release $TAG
+        run: echo "Release ${{ env.TAG }}"
+        env:
+          TAG: ${{ steps.generate_tag_dev.outputs.TAG }}
+
+  Deploy-Dev:
+    runs-on: ubuntu-latest
+    needs: auto-release-master_dev
+    steps:
+      - name: Deploy in Dev
+        run: |
+          # Your deployment script here
+        env:
+          TAG: ${{ env.TAG }}
+
+  unit-test_dev:
+    runs-on: ubuntu-latest
+    needs: Deploy-Dev
+    steps:
+      - name: Run Unit Tests
+        run: echo "Running smoke tests..."
+    continue-on-error: true
+
+
+  Shadow-test_dev:
+    runs-on: ubuntu-latest
+    needs: Deploy-Dev
+    steps:
+      - name: Run Shadow Tests
+        run: echo "Running Shadow tests..."
+    continue-on-error: true
+
+  Integration-test_dev:
+    runs-on: ubuntu-latest
+    needs: Deploy-Dev
+    steps:
+      - name: Run Integration Tests
+        run: echo "Running Integration tests..."
+    continue-on-error: true
+
+  Load-test_dev:
+    runs-on: ubuntu-latest
+    needs: Deploy-Dev
+    steps:
+      - name: Run Load Tests
+        run: echo "Running load tests..."
+    continue-on-error: true
+
+  End-user-test_dev:
+    runs-on: ubuntu-latest
+    needs: Deploy-Dev
+    steps:
+      - name: Run End-user Tests
+        run: echo "Running end-user tests..."
+    continue-on-error: true
+
+  notification_email_dev:
+    runs-on: ubuntu-latest
+    needs:
+      - unit-test_dev
+      - Shadow-test_dev
+      - Integration-test_dev
+      - Load-test_dev
+      - End-user-test_dev
+    steps:
+      - name: Send Notification
+        run: echo "Running notification send..."
