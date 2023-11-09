@@ -1,0 +1,103 @@
+name: CI/CD Pipeline
+
+on:
+  workflow_run:
+    workflows: ["main.yml"]
+    types:
+      - completed
+
+
+jobs:
+  Promote-container-prod:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run' && github.event.workflow == 'Promote-container-prod'
+    steps:
+      - name: Promote the container from dev to stg
+        run: echo "Promote the container from dev to stg"
+    needs: notification_email_stg
+
+  generate_tag_prod:
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow == 'generate_tag_prod')
+    steps:
+      - name: Generate TAG
+        run: echo "TAG=$(cat VERSION)" > tag.env
+    needs: Promote-container-prod
+    outputs:
+       tag: ${{ steps.generate_tag_prod.outputs.tag }}
+
+  auto-release-master_prod:
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow == 'auto-release-master_prod')
+    steps:
+      - name: Release $TAG
+        run: echo "Release ${{ needs.generate_tag_prod.outputs.tag }}"
+        env:
+          TAG: ${{ needs.generate_tag_prod.outputs.tag }}
+    needs: generate_tag_prod
+
+  Deploy-prod:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'Promote-container-prod'
+    steps:
+      - name: Deploy in Prod
+        run: |
+          # Your deployment script here
+        env:
+          TAG: ${{ needs.generate_tag_prod.outputs.tag }}
+    needs: auto-release-master_prod
+
+  unit-test_prod:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'Deploy-prod'
+    steps:
+      - name: Run Unit Tests
+        run: echo "Running unit tests..."
+    needs: Deploy-prod
+
+  Shadow-test_prod:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'Deploy-prod'
+    steps:
+      - name: Run Shadow Tests
+        run: echo "Running Shadow tests..."
+    needs: Deploy-prod
+
+  Integration-test_prod:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'Deploy-prod'
+    steps:
+      - name: Run Integration Tests
+        run: echo "Running Integration tests..."
+    needs: Deploy-prod
+
+  Load-test_prod:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'Deploy-prod'
+    steps:
+      - name: Run Load Tests
+        run: echo "Running load tests..."
+    needs: Deploy-prod
+
+  End-user-test_prod:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'Deploy-prod'
+    steps:
+      - name: Run End-user Tests
+        run: echo "Running end-user tests..."
+    needs: Deploy-prod
+
+  notification_email_prod:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'End-user-test_prod'
+    steps:
+      - name: Send Notification
+        run: echo "Running notification send..."
+    needs: [unit-test_prod, Shadow-test_prod, Integration-test_prod, Load-test_prod, End-user-test_prod]
+
+  notification_email_stg:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow == 'Promote-container-prod'
+    steps:
+      - name: Send Notification
+        run: echo "Running notification send..."

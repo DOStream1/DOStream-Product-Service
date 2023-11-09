@@ -51,7 +51,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: pirabanjan/buy-it-customer-service
+          images: pirabanjan/buy-it-product-service
       
       - name: Build and push Docker image
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
@@ -83,7 +83,7 @@ jobs:
       - name: Run Trivy scan
         run: |
           echo ${{ secrets.CI_REGISTRY_PASSWORD }} | docker login -u ${{ secrets.CI_REGISTRY_USER }} --password-stdin ${{ secrets.CI_REGISTRY }}
-          trivy image --severity CRITICAL,HIGH,MEDIUM --format json -o trivy-results.json nexus.corp.4sconsult.com/Buy-it-customer-service:latest
+          trivy image --severity CRITICAL,HIGH,MEDIUM --format json -o trivy-results.json nexus.corp.4sconsult.com/buy-it-product-service:latest
         env:
           CI_REGISTRY_USER: ${{ secrets.CI_REGISTRY_USER }}
           CI_REGISTRY_PASSWORD: ${{ secrets.CI_REGISTRY_PASSWORD }}
