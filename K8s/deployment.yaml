@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: products
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: products
+  template:
+    metadata:
+      labels:
+        app: products
+    spec:
+      containers:
+        - name: products
+          image: your-products-image:$(TAG)  # Replace with your image and tag
+          ports:
+            - containerPort: 8002
+          # Add volume mounts and resources as needed
+          resources:
+            limits:
+              memory: "512Mi"  # Adjust the memory limit as needed
+              cpu: "0.5"        # Adjust the CPU limit as needed

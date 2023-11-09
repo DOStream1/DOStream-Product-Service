@@ -1,0 +1,106 @@
+version: "3"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: 'rabbitmq'
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    restart: always
+    # healthcheck:
+    #     test: ["CMD", "curl", "-f", "http://localhost:15672"]
+    #     interval: 30s
+    #     timeout: 10s
+    #     retries: 5
+    
+  nosql-db:
+    image: mongo
+    ports:
+      - "27017:27017"
+    container_name: nosql-db
+    volumes:
+      - ./db/:/data/db
+    # healthcheck:
+    #   test: ["NONE"]
+    #   start_period: 5s
+
+  products:
+    build:
+      dockerfile: Dockerfile
+      context: ./products
+    container_name: products
+    ports:
+      - "8002:8002"
+    restart: always
+    depends_on:
+      - "nosql-db"
+      - "rabbitmq"
+    # depends_on:
+    #   # nosql-db:
+    #   #   condition: service_healthy
+    #   rabbitmq:
+    #     condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/products/node_modules
+
+    env_file:
+      - ./products/.env.dev
+
+  shopping:
+    build:
+      dockerfile: Dockerfile
+      context: ./shopping
+    container_name: shopping
+    ports:
+      - "8003:8003"
+    restart: always
+    depends_on:
+      - "nosql-db"
+      - "rabbitmq"
+    # depends_on:
+    #   # nosql-db:
+    #   #   condition: service_healthy
+    #   rabbitmq:
+    #     condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/shopping/node_modules
+    env_file:
+      - ./shopping/.env.dev
+
+  customer:
+    build:
+      dockerfile: Dockerfile
+      context: ./customer
+    container_name: customer
+    ports:
+      - "8001:8001"
+    restart: always
+    depends_on:
+      - "nosql-db"
+      - "rabbitmq"
+    # depends_on:
+    #   # nosql-db:
+    #   #   condition: service_healthy
+    #   rabbitmq:
+    #     condition: service_healthy
+    volumes:
+      - .:/app/
+      - /app/customer/node_modules
+    env_file:
+      - ./customer/.env.dev
+  
+  nginx-proxy:
+    build:
+      dockerfile: Dockerfile
+      context: ./proxy
+    depends_on:
+      - products
+      - shopping
+      - customer
+    ports:
+      - 80:80
