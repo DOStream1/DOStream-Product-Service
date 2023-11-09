@@ -1,0 +1,174 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: yarn install
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        # with:
+        #   args: >
+        #     -Dsonar.projectKey=dostream1_application_backend_customer_AYuRJz0z0-Xo9zBhfJiw
+        #     -Dsonar.verbose=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          # OPTIONS: -Dproject.settings=./sonarqube/sonar-project.properties
+          # OPTIONS: -Dsonar.projectKey=dostream1_application_backend_customer_AYuRJz0z0-Xo9zBhfJiw
+
+  push_to_registry:
+    name: Push Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.CI_REGISTRY_USER }}
+          password: ${{ secrets.CI_REGISTRY_PASSWORD }}
+      
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: pirabanjan/buy-it-customer-service
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  Docker-Scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install SSH client
+        run: apt-get install openssh-client -y
+
+      - name: Set up SSH key for Docker scan
+        run: |
+          eval $(ssh-agent -s)
+          echo -n "$SSH_PRIVATE_KEY_INTERNAL_TRIVY" | tr -d '\r' | ssh-add -
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan ${{ secrets.SSH_HOST_TRIVY }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run Trivy scan
+        run: |
+          echo ${{ secrets.CI_REGISTRY_PASSWORD }} | docker login -u ${{ secrets.CI_REGISTRY_USER }} --password-stdin ${{ secrets.CI_REGISTRY }}
+          trivy image --severity CRITICAL,HIGH,MEDIUM --format json -o trivy-results.json nexus.corp.4sconsult.com/Buy-it-customer-service:latest
+        env:
+          CI_REGISTRY_USER: ${{ secrets.CI_REGISTRY_USER }}
+          CI_REGISTRY_PASSWORD: ${{ secrets.CI_REGISTRY_PASSWORD }}
+
+      - name: Upload Trivy results
+        uses: actions/upload-artifact@v2
+        with:
+          name: trivy-results
+          path: trivy-results.json
+
+  OWSAP-Scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install required tools for OWSAP scan
+        run: |
+          apt-get update
+          apt-get install -y python3-pip
+          pip3 install requests
+          apt-get install curl jq coreutils
+          TODAY=$(date +%Y-%m-%d)
+          ENDDAY=$(date -d "+${DEFECTDOJO_ENGAGEMENT_PERIOD} days" +%Y-%m-%d)
+          eval $(ssh-agent -s)
+          echo -n "$SSH_PRIVATE_KEY_INTERNAL_TRIVY" | tr -d '\r' | ssh-add -
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan ${{ secrets.SSH_HOST_TRIVY }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run OWSAP scan
+        run: echo "Running OWSAP scan..."
+
+  defectdojo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up SSH key for DefectDojo
+        run: |
+          eval $(ssh-agent -s)
+          echo -n "$SSH_PRIVATE_KEY_INTERNAL_TRIVY" | tr -d '\r' | ssh-add -
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan ${{ secrets.SSH_HOST_TRIVY }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run DefectDojo script
+        run: |
+          git clone "https://gitlab-ci-token:${{ secrets.CI_JOB_TOKEN }}@${{ secrets.CI_REPOSITORY_URL }}"
+          cd 4sweb-v2
+          scp -o StrictHostKeyChecking=no ${{ secrets.SSH_USER_TRIVY }}@${{ secrets.SSH_HOST_TRIVY }}:/home/git-trivy/trivy-results.json trivy-results.json
+          ls -la
+
+  # include-dev:
+  #   runs-on: ubuntu-latest
+  #   needs: [SonarQube-Scan, build-Image, Docker-Scan, OWSAP-Scan, defectdojo]
+  #   steps:
+  #     - name: Include dev.yml
+  #       uses: actions/checkout@v2
+  #       with:
+  #         repository: your-repo/dev-config-repo
+  #         path: .github/workflows
+  #       if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stg'
+
+  # include-stg:
+  #   runs-on: ubuntu-latest
+  #   needs: [SonarQube-Scan, build-Image, Docker-Scan, OWSAP-Scan, defectdojo]
+  #   steps:
+  #     - name: Include stg.yml
+  #       uses: actions/checkout@v2
+  #       with:
+  #         repository: your-repo/stg-config-repo
+  #         path: .github/workflows
+  #       if: github.ref == 'refs/heads/stg' || github.ref == 'refs/heads/main'
+
+  # include-prod:
+  #   runs-on: ubuntu-latest
+  #   needs: [SonarQube-Scan, build-Image, Docker-Scan, OWSAP-Scan, defectdojo]
+  #   steps:
+  #     - name: Include prod.yml
+  #       uses: actions/checkout@v2
+  #       with:
+  #         repository: your-repo/prod-config-repo
+  #         path: .github/workflows
+  #       if: github.ref == 'refs/heads/main'
