@@ -13,12 +13,15 @@ spec:
         app: products
     spec:
       containers:
-        - name: products
-          image: your-products-image:$(TAG)  # Replace with your image and tag
+        - name: customer
+          image: registry.gitlab.com/dostream1/application/backend/products:main  # Replace with your image and tag
           ports:
             - containerPort: 8002
           # Add volume mounts and resources as needed
           resources:
             limits:
-              memory: "512Mi"  # Adjust the memory limit as needed
-              cpu: "0.5"        # Adjust the CPU limit as needed
+              memory: "512Mi"
+              cpu: "200m"  # Adjust the CPU limit as needed
+            requests:
+              cpu: "100m"  # Adjust the CPU request as needed
+  
