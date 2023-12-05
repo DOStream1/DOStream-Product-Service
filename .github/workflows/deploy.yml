@@ -1,0 +1,52 @@
+name: Deploy
+
+on: workflow_call
+
+jobs:
+  deploy_dev:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Setup Python and AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+          pip3 install --upgrade pip
+          pip3 install awscli
+
+      - name: Setup kubectl
+        run: |
+          sudo curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Configure AWS
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region ${{ secrets.AWS_DEFAULT_REGION_DEV }}
+
+      - name: Setup Docker
+        run: |
+          sudo apt-get install -y docker.io
+          docker login -u ${{ secrets.CI_REGISTRY_USER }} -p ${{ secrets.CI_REGISTRY_PASSWORD }} ${{ secrets.CI_REGISTRY }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks --region ${{ secrets.AWS_DEFAULT_REGION_DEV }} update-kubeconfig --name dostream-eks-dev
+
+      # - name: Set Version
+      #   run: |
+      #     VERSION_DEV=$(cat version.txt)-dev
+      #     export IMAGE_VERSION="$VERSION_DEV"
+      #     sed -i "s|\${IMAGE_VERSION}|$IMAGE_VERSION|" ./k8s/deployment.yaml
+
+      - name: Apply Kubernetes Config
+        run: |
+          # kubectl get secret regcred || kubectl create secret docker-registry regcred --docker-server=${{ secrets.CI_REGISTRY }} --docker-username=${{ secrets.CI_REGISTRY_USER }} --docker-password=${{ secrets.CI_REGISTRY_PASSWORD }} --docker-email=unused@example.com
+          kubectl apply -f ./k8s/configmap.yaml
+          kubectl apply -f ./k8s/deployment.yaml
+          kubectl apply -f ./k8s/service.yaml
