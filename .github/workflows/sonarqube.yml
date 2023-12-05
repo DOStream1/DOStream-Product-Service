@@ -1,0 +1,31 @@
+name: Sonarqube pipeline
+on: workflow_call
+
+jobs:
+
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: yarn install
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        # with:
+        #   args: >
+        #     -Dsonar.projectKey=dostream1_application_backend_customer_AYuRJz0z0-Xo9zBhfJiw
+        #     -Dsonar.verbose=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          # OPTIONS: -Dproject.settings=./sonarqube/sonar-project.properties
+          # OPTIONS: -Dsonar.projectKey=dostream1_application_backend_customer_AYuRJz0z0-Xo9zBhfJiw
