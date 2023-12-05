@@ -1,0 +1,52 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # code-scan:
+  #   name: Code-Scan
+  #   uses: ./.github/workflows/sonarqube.yml
+  #   secrets: inherit
+
+  # build:
+  #   # needs: code-scan
+  #   #name: build
+  #   uses: ./.github/workflows/docker.yml
+  #   secrets: inherit
+  build:
+    # needs: code-scan
+    # name: build
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+    with:
+      image-tag: "my-tag1"
+
+  # sca:
+  #   # needs: build
+  #   name: SCA
+  #   uses: ./.github/workflows/sca.yml
+  #   secrets: inherit
+  
+  # sast:
+  #   needs: build
+  #   name: SAST
+  #   uses: ./.github/workflows/sast.yml
+  #   secrets: inherit
+
+  # tivy-scan:
+    # needs: build
+  #   name: Trivy
+  #   uses: ./.github/workflows/trivy-scan.yml
+  #   secrets: inherit
+
+  dast:
+    needs: build
+    name: DAST
+    uses: ./.github/workflows/dast.yml
+    secrets: inherit
+    with:
+      image-tag: "my-tag1"
+  
