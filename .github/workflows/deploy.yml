@@ -1,10 +1,23 @@
 name: Deploy
 
-on: workflow_call
+on:
+  workflow_call:
+    inputs:
+      image-tag:
+        type: string
+        description: 'The name of the docker image to scan'
+        required: true
+      env:
+        type: string
+        description: 'The name of the docker image to scan'
+        required: true
 
 jobs:
-  deploy_dev:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [DOStream]
 
     steps:
       - name: Checkout Repository
@@ -23,30 +36,69 @@ jobs:
           sudo chmod +x kubectl
           sudo mv kubectl /usr/local/bin/
 
+      - name: Set AWS Region
+        id: set-aws-region
+        run: |
+          if [ "${{ inputs.env }}" = "dev" ]; then
+            echo "aws-region=${{ secrets.AWS_DEFAULT_REGION_DEV }}"
+          elif [ "${{ inputs.env }}" = "stg" ]; then
+            echo "aws-region=${{ secrets.AWS_DEFAULT_REGION_STG }}"
+          elif [ "${{ inputs.env }}" = "prod" ]; then
+            echo "aws-region=${{ secrets.AWS_DEFAULT_REGION_PROD }}"
+          fi >> $GITHUB_ENV
+          
       - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set default.region ${{ secrets.AWS_DEFAULT_REGION_DEV }}
+          aws configure set default.region ${{ env.aws-region }}
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.aws-region }}
 
-      - name: Setup Docker
-        run: |
-          sudo apt-get install -y docker.io
-          docker login -u ${{ secrets.CI_REGISTRY_USER }} -p ${{ secrets.CI_REGISTRY_PASSWORD }} ${{ secrets.CI_REGISTRY }}
+      - name: Run kubectl configmap
+        uses: nikosch86/github-action-eks-kubectl@main
+        with:
+          command: "apply -f ./k8s/configmap.yaml"
+        env:
+          EKS_CLUSTER: dostream-eks-${{ inputs.env }}
 
-      - name: Update kubeconfig
-        run: |
-          aws eks --region ${{ secrets.AWS_DEFAULT_REGION_DEV }} update-kubeconfig --name dostream-eks-dev
+      - name: Run kubectl deployment
+        uses: nikosch86/github-action-eks-kubectl@main
+        with:
+          command: "apply -f ./k8s/deployment.yaml"
+        env:
+          EKS_CLUSTER: dostream-eks-${{ inputs.env }}
 
-      # - name: Set Version
+      - name: Run kubectl service
+        uses: nikosch86/github-action-eks-kubectl@main
+        with:
+          command: "apply -f ./k8s/service.yaml"
+        env:
+          EKS_CLUSTER: dostream-eks-${{ inputs.env }}
+
+      # - name: Log in to Docker Hub
+      #   uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+      #   with:
+      #     username: ${{ secrets.CI_REGISTRY_USER }}
+      #     password: ${{ secrets.CI_REGISTRY_PASSWORD }}
+
+      # - name: Update kubeconfig
       #   run: |
-      #     VERSION_DEV=$(cat version.txt)-dev
-      #     export IMAGE_VERSION="$VERSION_DEV"
-      #     sed -i "s|\${IMAGE_VERSION}|$IMAGE_VERSION|" ./k8s/deployment.yaml
+      #     aws eks --region ${{ secrets.AWS_DEFAULT_REGION_DEV }} update-kubeconfig --name dostream-eks-dev
 
-      - name: Apply Kubernetes Config
-        run: |
-          # kubectl get secret regcred || kubectl create secret docker-registry regcred --docker-server=${{ secrets.CI_REGISTRY }} --docker-username=${{ secrets.CI_REGISTRY_USER }} --docker-password=${{ secrets.CI_REGISTRY_PASSWORD }} --docker-email=unused@example.com
-          kubectl apply -f ./k8s/configmap.yaml
-          kubectl apply -f ./k8s/deployment.yaml
-          kubectl apply -f ./k8s/service.yaml
+      # # - name: Set Version
+      # #   run: |
+      # #     VERSION_DEV=$(cat version.txt)-dev
+      # #     export IMAGE_VERSION="$VERSION_DEV"
+      # #     sed -i "s|\${IMAGE_VERSION}|$IMAGE_VERSION|" ./k8s/deployment.yaml
+
+      # - name: Apply Kubernetes Config
+      #   run: |
+      #     kubectl apply -f ./k8s/configmap.yaml
+      #     kubectl apply -f ./k8s/deployment.yaml
+      #     kubectl apply -f ./k8s/service.yaml
