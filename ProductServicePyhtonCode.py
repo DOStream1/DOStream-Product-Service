@@ -13,9 +13,7 @@ base_url = sys.argv[1]
 def get_headers():
     # Define your headers here
     headers = {
-        'Authorization': '
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3Q0QHRlc3QuY29tIiwiX2lkIjoiNjU2ZjQ2NTI0ZGEwMGQwMDE3NmQwZTRkIiwiaWF0IjoxNzAxNzkxMzE0LCJleHAiOjE3MDQzODMzMTR9.doBeXKaajbI72bkRpHx6pIXXno6wt87B-dI43hX3UP0',
-        'Content-Type': 'application/json'
+        'Authorization': """Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3Q0QHRlc3QuY29tIiwiX2lkIjoiNjU2ZjQ2NTI0ZGEwMGQwMDE3NmQwZTRkIiwiaWF0IjoxNzAxNzkxMzE0LCJleHAiOjE3MDQzODMzMTR9.doBeXKaajbI72bkRpHx6pIXXno6wt87B-dI43hX3UP0""",        'Content-Type': 'application/json'
     }
     return headers
 
