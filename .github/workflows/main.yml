@@ -11,51 +11,51 @@ jobs:
     name: test
     uses: ./.github/workflows/test.yml
     secrets: inherit
-#   code-scan:
-#     name: Code-Scan
-#     uses: ./.github/workflows/sonarqube.yml
-#     secrets: inherit
+  # code-scan:
+  #   name: Code-Scan
+  #   uses: ./.github/workflows/sonarqube.yml
+  #   secrets: inherit
     
-#   build:
-#     needs: code-scan
-#     name: build
-#     uses: ./.github/workflows/docker.yml
-#     secrets: inherit
-#     with:
-#       image-tag: "my-tag1"
+  # build:
+  #   needs: code-scan
+  #   name: build
+  #   uses: ./.github/workflows/docker.yml
+  #   secrets: inherit
+  #   with:
+  #     image-tag: "my-tag1"
 
-#   trivy-scan:
-#     needs: build
-#     name: Trivy
-#     uses: ./.github/workflows/trivy-scan.yml
-#     secrets: inherit
-#     with:
-#       image-tag: "my-tag1"
+  # trivy-scan:
+  #   needs: build
+  #   name: Trivy
+  #   uses: ./.github/workflows/trivy-scan.yml
+  #   secrets: inherit
+  #   with:
+  #     image-tag: "my-tag1"
 
-#   deploy-dev:
-#     needs: [build, trivy-scan] 
-#     name: Deploy-Dev
-#     uses: ./.github/workflows/deploy.yml
-#     secrets: inherit
-#     with:
-#       image-tag: "my-tag1"
-#       env: "dev"
+  # deploy-dev:
+  #   needs: [build, trivy-scan] 
+  #   name: Deploy-Dev
+  #   uses: ./.github/workflows/deploy.yml
+  #   secrets: inherit
+  #   with:
+  #     image-tag: "my-tag1"
+  #     env: "dev"
 
-#   deploy-stg:
-#     needs: deploy-dev
-#     name: Deploy-Stg
-#     uses: ./.github/workflows/deploy.yml
-#     secrets: inherit
-#     with:
-#       image-tag: "my-tag1"
-#       env: "stg"
+  # deploy-stg:
+  #   needs: deploy-dev
+  #   name: Deploy-Stg
+  #   uses: ./.github/workflows/deploy.yml
+  #   secrets: inherit
+  #   with:
+  #     image-tag: "my-tag1"
+  #     env: "stg"
 
-#   deploy-prod:
-#     needs: deploy-stg
-#     name: Deploy-Prod
-#     uses: ./.github/workflows/deploy.yml
-#     secrets: inherit
-#     with:
-#       image-tag: "my-tag1"
-      env: "prod"
+  # deploy-prod:
+  #   needs: deploy-stg
+  #   name: Deploy-Prod
+  #   uses: ./.github/workflows/deploy.yml
+  #   secrets: inherit
+  #   with:
+  #     image-tag: "my-tag1"
+      # env: "prod"
   
