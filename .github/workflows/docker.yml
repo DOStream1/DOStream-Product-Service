@@ -19,7 +19,7 @@
 #             id: meta
 #             uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
 #             with:
-#               images: pirabanjan/buy-it-customer-service
+#               images: pirabanjan/buy-it-product-service
           
 #           - name: Build and push Docker image
 #             uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
@@ -59,7 +59,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: pirabanjan/buy-it-customer-service
+          images: pirabanjan/buy-it-product-service
 
       - name: Debug Image Tag
         run: echo ${{ inputs.image-tag }}
@@ -70,4 +70,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: pirabanjan/buy-it-customer-service:${{ inputs.image-tag }}
+          tags: pirabanjan/buy-it-product-service:${{ inputs.image-tag }}
