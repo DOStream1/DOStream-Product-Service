@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: customer
-          image: pirabanjan/buy-it-product-service  # Replace with your image and tag
+          image: pirabanjan/buy-it-product-service:main  # Replace with your image and tag
           ports:
             - containerPort: 8002
           # Add volume mounts and resources as needed
