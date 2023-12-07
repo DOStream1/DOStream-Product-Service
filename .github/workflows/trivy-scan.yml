@@ -12,15 +12,29 @@ jobs:
     name: trivy-scan
     runs-on: ubuntu-20.04
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
       - name: Build an image from Dockerfile
-        run: |
-          pirabanjan/buy-it-customer-service:${{ github.sha }} .
+        run: docker build -t pirabanjan/buy-it-product-service:${{ inputs.image-tag }} .
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'pirabanjan/buy-it-customer-service:${{ github.sha }}'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
+          image-ref: 'pirabanjan/buy-it-product-service:${{ inputs.image-tag }}'
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+          # format: 'table'
           severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          # output: trivy_report.txt
+
+      # - name: Save Trivy scan report as an artifact
+      #   if: always()  # Ensure this step runs even if the previous steps fail
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: trivy-report
+      #     path: /github/workspace/trivy_report.txt
+      - name: Upload Trivy Image scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-image-results.sarif'
+          category: 'image'
