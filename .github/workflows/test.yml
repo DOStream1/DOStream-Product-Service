@@ -1,28 +1,80 @@
 name: Run Python Script
 
-on: workflow_call
+on:
+  workflow_call:
+    inputs:
+      env:
+        type: string
+        description: 'The name of the docker image to scan'
+        required: true
 
 jobs:
   run-python-script:
-    runs-on: ubuntu-latest  # You can choose a different operating system
+    runs-on: ubuntu-latest
 
     env:
-      BASE_URL: "http://a7a98416acbb04022828289e9de26da3-1170763216.us-west-2.elb.amazonaws.com:80"  # Set the base URL as an environment variable
+      BASE_URL_DEV: "http://dev-url:80"
+      BASE_URL_STG: "http://stg-url:80"
+      BASE_URL_PROD: "http://prod-url:80"
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.x  # Choose the Python version you need
+    - name: Setup kubectl
+      run: |
+        sudo curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
 
-    - name: Install dependencies
-      run: pip install requests
+    - name: Set AWS Region
+      id: set-aws-region
+      run: |
+        if [ "${{ inputs.env }}" = "dev" ]; then
+          echo "aws-region=${{ secrets.AWS_DEFAULT_REGION_DEV }}"
+        elif [ "${{ inputs.env }}" = "stg" ]; then
+          echo "aws-region=${{ secrets.AWS_DEFAULT_REGION_STG }}"
+        elif [ "${{ inputs.env }}" = "prod" ]; then
+          echo "aws-region=${{ secrets.AWS_DEFAULT_REGION_PROD }}"
+        fi >> $GITHUB_ENV
+          
+    - name: Configure AWS
+      run: |
+         aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws configure set default.region ${{ env.aws-region }}
+          
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.aws-region }}
+
+    - name: Configure kubectl
+      run: aws eks --region ${{ env.aws-region }} update-kubeconfig --name dostream-eks-${{ inputs.env }}
+
+    - name: Get External IP
+      id: get-external-ip
+      run: |
+        EXTERNAL_IP=$(kubectl get svc -n default nginx-proxy-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        echo "external_ip=${EXTERNAL_IP}" >> $GITHUB_ENV
+        
+    - name: Set Base URL based on environment
+      run: |
+        if [ "${{ inputs.env }}" = "dev" ]; then
+          export BASE_URL="${BASE_URL_DEV}"
+        elif [ "${{ inputs.env }}" = "stg" ]; then
+          export BASE_URL="${BASE_URL_STG}"
+        elif [ "${{ inputs.env }}" = "prod" ]; then
+          export BASE_URL="${BASE_URL_PROD}"
+        else
+          echo "Invalid environment specified."
+          exit 1
+        fi
 
     - name: Run Python script
-      run: python ProductServicePyhtonCode.py ${{ env.BASE_URL }}  # Pass the base URL as a parameter
+      run: python ProductServicePyhtonCode.py "http://${{ env.external_ip }}:80"  # Pass the complete URL as a parameter
 
     - name: Upload output as artifact
       uses: actions/upload-artifact@v2
