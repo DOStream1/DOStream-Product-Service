@@ -7,7 +7,8 @@ const { CreateChannel } = require("./utils");
 
 module.exports = async (app) => {
   app.use(express.json());
-  app.use(cors());
+  // app.use(cors());
+  console.log(app)
   app.use(express.static(__dirname + "/public"));
 
   //api
