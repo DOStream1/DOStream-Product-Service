@@ -1,0 +1,31 @@
+name: Run Python Script
+
+on: workflow_call
+
+jobs:
+  run-python-script:
+    runs-on: ubuntu-latest  # You can choose a different operating system
+
+    env:
+      BASE_URL: "http://a7a98416acbb04022828289e9de26da3-1170763216.us-west-2.elb.amazonaws.com:80"  # Set the base URL as an environment variable
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.x  # Choose the Python version you need
+
+    - name: Install dependencies
+      run: pip install requests
+
+    - name: Run Python script
+      run: python ProductServicePyhtonCode.py ${{ env.BASE_URL }}  # Pass the base URL as a parameter
+
+    - name: Upload output as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: python-script-output
+        path: output.txt
