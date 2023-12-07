@@ -5,7 +5,12 @@ on:
     branches:
       - main
 
-# jobs:
+jobs:
+  test:
+    name: test
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
 #   code-scan:
 #     name: Code-Scan
 #     uses: ./.github/workflows/sonarqube.yml
