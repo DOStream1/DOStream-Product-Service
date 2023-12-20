@@ -1,4 +1,4 @@
-FROM node:18.4.0
+FROM node:18.19
 
 WORKDIR /app/products
 
